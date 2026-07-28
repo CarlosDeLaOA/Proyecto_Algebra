@@ -1,0 +1,173 @@
+from matrices import Matriz, formatear, es_cero
+class Figura:
+    """Objeto bidimensional del escenario, representado por una matriz 2 x n."""
+
+    def __init__(self, nombre, vertices):
+        """
+        nombre   : identificador del objeto (Jugador, Enemigo, Plataforma, ...)
+        vertices : lista de pares (x, y) con las coordenadas cartesianas
+        """
+        nombre = str(nombre).strip()
+        if not nombre:
+            raise ValueError("El objeto debe tener un nombre.")
+
+        vertices = self._validar_vertices(vertices)
+
+        self.nombre = nombre
+        self.matriz = Matriz([
+            [float(p[0]) for p in vertices],
+            [float(p[1]) for p in vertices],
+        ])
+
+    # ------------------------------------------------------------------
+    # Validacion de la entrada
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _validar_vertices(vertices):
+        if not isinstance(vertices, (list, tuple)) or len(vertices) == 0:
+            raise ValueError("Debe indicar al menos un vertice.")
+
+        limpios = []
+        for k, p in enumerate(vertices):
+            if not isinstance(p, (list, tuple)) or len(p) != 2:
+                raise ValueError(
+                    f"El vertice {k + 1} debe ser un par (x, y); se recibio {p!r}.")
+            x, y = p
+            for valor in (x, y):
+                if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+                    raise TypeError(
+                        f"La coordenada {valor!r} del vertice {k + 1} no es un numero real.")
+            limpios.append((float(x), float(y)))
+
+        # Dos vertices consecutivos identicos generarian una arista nula,
+        # que rompe el analisis geometrico de la Actividad #3.
+        for k in range(len(limpios) - 1):
+            if es_cero(limpios[k][0] - limpios[k + 1][0]) and \
+               es_cero(limpios[k][1] - limpios[k + 1][1]):
+                raise ValueError(
+                    f"Los vertices {k + 1} y {k + 2} son iguales: "
+                    "no se admiten vertices consecutivos repetidos.")
+
+        return limpios
+
+    # ------------------------------------------------------------------
+    # Construccion alterna
+    # ------------------------------------------------------------------
+    @classmethod
+    def desde_matriz(cls, nombre, matriz):
+        """Reconstruye una figura a partir de una matriz de 2 x n."""
+        if matriz.m != 2:
+            raise ValueError(
+                f"La matriz de una figura 2D debe tener exactamente 2 filas; "
+                f"la recibida tiene {matriz.m}.")
+        puntos = [(matriz.datos[0][j], matriz.datos[1][j]) for j in range(matriz.n)]
+        return cls(nombre, puntos)
+
+    # ------------------------------------------------------------------
+    # Consulta
+    # ------------------------------------------------------------------
+    @property
+    def cantidad_vertices(self):
+        return self.matriz.n
+
+    def vertices(self):
+        """Lista de pares (x, y), leyendo la matriz columna por columna."""
+        return [(self.matriz.datos[0][j], self.matriz.datos[1][j])
+                for j in range(self.matriz.n)]
+
+    def vertice(self, j):
+        """P_j = A^(j): el vertice j-esimo como par (x, y). Indice 1-based."""
+        return (self.matriz.elemento(1, j), self.matriz.elemento(2, j))
+
+    def vector_posicion(self, j):
+        """P_j como matriz columna de M_{2 x 1}(R), tal como se define en clase."""
+        return self.matriz.columna(j)
+
+    def es_poligono(self):
+        """Un poligono requiere al menos 3 vertices."""
+        return self.cantidad_vertices >= 3
+
+    # ------------------------------------------------------------------
+    # Presentacion
+    # ------------------------------------------------------------------
+    def texto_vertices(self):
+        return "\n".join(
+            f"  P{j + 1} = ({formatear(x)}, {formatear(y)})"
+            for j, (x, y) in enumerate(self.vertices()))
+
+    def detalle(self):
+        """Ficha completa del objeto, para mostrar en la interfaz."""
+        L = []
+        L.append(f"Objeto: {self.nombre}")
+        L.append(f"Cantidad de vertices: {self.cantidad_vertices}")
+        L.append(f"Tipo: {'poligono' if self.es_poligono() else 'punto o segmento'}")
+        L.append("")
+        L.append(f"Matriz asociada A en M_{{{self.matriz.m} x {self.matriz.n}}}(R):")
+        L.append(str(self.matriz))
+        L.append("Clasificacion de A: " + ", ".join(self.matriz.clasificacion()))
+        L.append("")
+        L.append("Coordenadas cartesianas (cada columna A^(j) es un vertice):")
+        L.append(self.texto_vertices())
+        L.append("")
+        L.append("Filas de A:")
+        L.append(f"  A_(1) = {self.matriz.fila(1)}   (abscisas)")
+        L.append(f"  A_(2) = {self.matriz.fila(2)}   (ordenadas)")
+        return "\n".join(L)
+
+    def __str__(self):
+        return (f"{self.nombre} ({self.cantidad_vertices} vertices)\n"
+                f"{self.matriz}")
+
+    def __repr__(self):
+        return f"Figura({self.nombre!r}, {self.vertices()})"
+
+
+class Escenario:
+    """
+    Coleccion de objetos del mundo virtual.
+
+    La Actividad #3 pide "analizar los objetos almacenados", de modo que el
+    motor necesita un contenedor y no solo figuras sueltas.
+    """
+
+    def __init__(self):
+        self.objetos = []
+
+    def agregar(self, figura):
+        if not isinstance(figura, Figura):
+            raise TypeError("Solo se pueden agregar objetos de tipo Figura.")
+        if any(o.nombre.lower() == figura.nombre.lower() for o in self.objetos):
+            raise ValueError(f"Ya existe un objeto llamado '{figura.nombre}'.")
+        self.objetos.append(figura)
+        return figura
+
+    def obtener(self, nombre):
+        for o in self.objetos:
+            if o.nombre.lower() == str(nombre).strip().lower():
+                return o
+        raise KeyError(f"No existe un objeto llamado '{nombre}'.")
+
+    def eliminar(self, nombre):
+        objeto = self.obtener(nombre)
+        self.objetos.remove(objeto)
+        return objeto
+
+    def reemplazar(self, nombre, figura_nueva):
+        """Sustituye un objeto conservando su posicion en la lista."""
+        objeto = self.obtener(nombre)
+        self.objetos[self.objetos.index(objeto)] = figura_nueva
+        return figura_nueva
+
+    def nombres(self):
+        return [o.nombre for o in self.objetos]
+
+    def listar(self):
+        if not self.objetos:
+            return "El escenario esta vacio."
+        return "\n".join(
+            f"  {k + 1}. {o.nombre}  ->  matriz de {o.matriz.m}x{o.matriz.n} "
+            f"({o.cantidad_vertices} vertices)"
+            for k, o in enumerate(self.objetos))
+
+    def __len__(self):
+        return len(self.objetos)
