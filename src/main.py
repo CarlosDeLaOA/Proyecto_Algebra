@@ -3,8 +3,8 @@ PixelForge MathEngine 2D v1.0
 Modulo: main.py
 
 Interfaz de consola del motor grafico.
-Actividades habilitadas: #1 (representacion), #2 (transformaciones) y
-#3 (analisis matematico del escenario).
+Actividades habilitadas: #1 (representacion), #2 (transformaciones),
+#3 (analisis matematico) y #4 (historial de transformaciones).
 
 Principios de la interfaz:
   - El escenario arranca VACIO. Ninguna figura viene predeterminada.
@@ -16,6 +16,8 @@ import transformaciones as tr
 import analisis
 import graficos
 from figuras import Figura, Escenario
+from historial import GestorHistorial
+from matrices import formatear
 
 SEP = "-" * 58
 
@@ -70,7 +72,10 @@ def elegir_objeto(escenario, accion="operar"):
 
 
 def guardar_resultado(escenario, figura_original, vertices_nuevos, etiqueta):
-    """Pregunta que hacer con una figura resultante y la guarda si corresponde."""
+    """
+    Pregunta que hacer con una figura resultante.
+    Devuelve el nombre del objeto donde quedo guardada, o None si se descarto.
+    """
     print(f"\n  Que desea hacer con {etiqueta}?")
     print("    1) Reemplazar el objeto en el escenario")
     print("    2) Guardarlo como un objeto nuevo")
@@ -81,21 +86,26 @@ def guardar_resultado(escenario, figura_original, vertices_nuevos, etiqueta):
         escenario.reemplazar(figura_original.nombre,
                              Figura(figura_original.nombre, vertices_nuevos))
         print(f"  Objeto '{figura_original.nombre}' actualizado.")
-    elif destino == "2":
+        return figura_original.nombre
+
+    if destino == "2":
         nuevo = input("    Nombre del objeto nuevo: ").strip()
         try:
             escenario.agregar(Figura(nuevo, vertices_nuevos))
             print(f"  Objeto '{nuevo}' agregado al escenario.")
+            return nuevo
         except (ValueError, TypeError) as e:
             print(f"  No se pudo guardar: {e}")
-    else:
-        print("  Resultado descartado. El escenario no cambio.")
+            return None
+
+    print("  Resultado descartado. El escenario no cambio.")
+    return None
 
 
 # ----------------------------------------------------------------------
 # ACTIVIDAD #1: representacion de objetos
 # ----------------------------------------------------------------------
-def crear_objeto(escenario):
+def crear_objeto(escenario, gestor):
     print("\nConstruccion de un objeto por coordenadas cartesianas")
     nombre = input("  Nombre del objeto: ").strip()
     if not nombre:
@@ -117,6 +127,7 @@ def crear_objeto(escenario):
         print(f"  No se pudo crear el objeto: {e}")
         return
 
+    gestor.iniciar(figura)
     print(f"\n  Objeto '{figura.nombre}' agregado al escenario.")
     print(SEP)
     print(figura.detalle())
@@ -142,12 +153,13 @@ def ver_objeto(escenario):
             print(f"    {e}")
 
 
-def eliminar_objeto(escenario):
+def eliminar_objeto(escenario, gestor):
     figura = elegir_objeto(escenario, "eliminar")
     if figura is None:
         return
     escenario.eliminar(figura.nombre)
-    print(f"  Objeto '{figura.nombre}' eliminado.")
+    gestor.eliminar(figura.nombre)
+    print(f"  Objeto '{figura.nombre}' eliminado, junto con su historial.")
 
 
 # ----------------------------------------------------------------------
@@ -221,7 +233,7 @@ def pedir_secuencia(figura):
     return resultados
 
 
-def aplicar_transformacion(escenario, estado):
+def aplicar_transformacion(escenario, gestor, estado):
     figura = elegir_objeto(escenario, "transformar")
     if figura is None:
         return
@@ -261,9 +273,13 @@ def aplicar_transformacion(escenario, estado):
         print(SEP)
 
     estado["ultimo"] = resultados[-1]
-    guardar_resultado(escenario, figura,
-                      resultados[-1].figura_despues.vertices(),
-                      "la figura transformada")
+    destino = guardar_resultado(escenario, figura,
+                                resultados[-1].figura_despues.vertices(),
+                                "la figura transformada")
+    if destino:
+        gestor.registrar_secuencia(destino, figura, resultados)
+        print(f"  {len(resultados)} transformacion(es) registrada(s) en el "
+              f"historial de '{destino}'.")
 
 
 # ----------------------------------------------------------------------
@@ -310,7 +326,7 @@ def analisis_independencia(escenario):
     print(SEP)
 
 
-def analisis_redundancia(escenario):
+def analisis_redundancia(escenario, gestor):
     figura = elegir_objeto(escenario, "optimizar")
     if figura is None:
         return
@@ -321,8 +337,15 @@ def analisis_redundancia(escenario):
 
     if len(optimizada) == figura.cantidad_vertices:
         return
-    guardar_resultado(escenario, figura, optimizada,
-                      "la representacion optimizada")
+
+    destino = guardar_resultado(escenario, figura, optimizada,
+                                "la representacion optimizada")
+    if destino:
+        gestor.registrar_evento(
+            destino, figura,
+            f"Optimizacion: {figura.cantidad_vertices} -> {len(optimizada)} vertices",
+            figura.vertices(), optimizada)
+        print(f"  Optimizacion registrada en el historial de '{destino}'.")
 
 
 def analisis_escenario(escenario):
@@ -344,7 +367,7 @@ def analisis_escenario(escenario):
     print(SEP)
 
 
-def menu_analisis(escenario):
+def menu_analisis(escenario, gestor):
     print("\n  Analisis matematico del escenario")
     print("    1) Espacios y subespacios vectoriales")
     print("    2) Independencia lineal, base y dimension de un objeto")
@@ -357,9 +380,69 @@ def menu_analisis(escenario):
     elif op == "2":
         analisis_independencia(escenario)
     elif op == "3":
-        analisis_redundancia(escenario)
+        analisis_redundancia(escenario, gestor)
     else:
         analisis_escenario(escenario)
+
+
+# ----------------------------------------------------------------------
+# ACTIVIDAD #4: historial de transformaciones
+# ----------------------------------------------------------------------
+def menu_historial(escenario, gestor):
+    figura = elegir_objeto(escenario, "consultar el historial de")
+    if figura is None:
+        return
+    try:
+        h = gestor.obtener(figura.nombre)
+    except KeyError as e:
+        print(f"  {e}")
+        return
+
+    print(SEP)
+    print(f"Historial de '{h.nombre_objeto}': "
+          f"{len(h)} transformacion(es) registrada(s)")
+    print(SEP)
+    print(h.cadena())
+    print(SEP)
+
+    if len(h) == 0:
+        return
+
+    print("\n  1) Ver el detalle completo (matrices y coordenadas)")
+    print("  2) Reconstruir el objeto en un paso anterior")
+    print("  3) Deshacer la ultima transformacion")
+    print("  4) Volver")
+    op = leer_opcion("  Opcion: ", {"1", "2", "3", "4"})
+
+    if op == "1":
+        print(SEP)
+        print(h.detallado())
+        print(SEP)
+
+    elif op == "2":
+        print("\n  Pasos disponibles:")
+        print(f"    0. Estado inicial ({len(h.estado_inicial)} vertices)")
+        print(h.resumen())
+        paso = leer_entero_positivo("  Reconstruir hasta el paso: ", minimo=0)
+        try:
+            puntos = h.reconstruir(paso)
+        except IndexError as e:
+            print(f"  {e}")
+            return
+        print(f"\n  Coordenadas tras {paso} transformacion(es):")
+        for k, (x, y) in enumerate(puntos):
+            print(f"    P{k + 1} = ({formatear(x)}, {formatear(y)})")
+        if leer_opcion("  Restaurar el objeto a este estado? (s/n): ",
+                       {"s", "n"}) == "s":
+            escenario.reemplazar(figura.nombre, Figura(figura.nombre, puntos))
+            h.registros = h.registros[:paso]
+            print(f"  Objeto '{figura.nombre}' restaurado al paso {paso}.")
+
+    elif op == "3":
+        puntos = h.deshacer()
+        escenario.reemplazar(figura.nombre, Figura(figura.nombre, puntos))
+        print(f"  Ultima transformacion deshecha. '{figura.nombre}' "
+              f"tiene ahora {len(puntos)} vertices.")
 
 
 # ----------------------------------------------------------------------
@@ -402,10 +485,11 @@ def ver_grafico(escenario, estado):
 def main():
     print("=" * 58)
     print("     PixelForge MathEngine 2D v1.0")
-    print("     Actividades habilitadas: #1, #2 y #3")
+    print("     Actividades habilitadas: #1, #2, #3 y #4")
     print("=" * 58)
 
     escenario = Escenario()
+    gestor = GestorHistorial()
     estado = {"ultimo": None}
 
     while True:
@@ -417,26 +501,29 @@ def main():
         print("  2) Ver detalle de un objeto")
         print("  3) Aplicar transformacion")
         print("  4) Analisis matematico del escenario")
-        print("  5) Ver grafico")
-        print("  6) Eliminar un objeto")
+        print("  5) Historial de transformaciones")
+        print("  6) Ver grafico")
+        print("  7) Eliminar un objeto")
         print("  0) Salir")
 
-        op = leer_opcion("Opcion: ", {"0", "1", "2", "3", "4", "5", "6"})
+        op = leer_opcion("Opcion: ", {"0", "1", "2", "3", "4", "5", "6", "7"})
         if op == "0":
             print("Cerrando MathEngine 2D.")
             break
         elif op == "1":
-            crear_objeto(escenario)
+            crear_objeto(escenario, gestor)
         elif op == "2":
             ver_objeto(escenario)
         elif op == "3":
-            aplicar_transformacion(escenario, estado)
+            aplicar_transformacion(escenario, gestor, estado)
         elif op == "4":
-            menu_analisis(escenario)
+            menu_analisis(escenario, gestor)
         elif op == "5":
-            ver_grafico(escenario, estado)
+            menu_historial(escenario, gestor)
         elif op == "6":
-            eliminar_objeto(escenario)
+            ver_grafico(escenario, estado)
+        elif op == "7":
+            eliminar_objeto(escenario, gestor)
 
 
 if __name__ == "__main__":
