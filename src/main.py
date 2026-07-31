@@ -179,20 +179,21 @@ def crear_por_matriz(escenario, gestor):
     Construye un objeto ingresando su matriz fila por fila.
 
     Admite las dos representaciones que acepta Figura.desde_matriz:
-    cartesiana de 2 filas u homogenea de 3 filas.
+    de 2 filas (coordenadas cartesianas) o de 3 filas (coordenadas
+    homogeneas). La interfaz no menciona esos nombres tecnicos: describe
+    directamente que contiene cada fila.
     """
     print("\nConstruccion de un objeto ingresando su matriz")
     print("  Representaciones admitidas:")
-    print("    2 filas -> cartesiana:  fila 1 = abscisas, fila 2 = ordenadas")
-    print("    3 filas -> homogenea:   se agrega la fila de componentes w")
+    print("    2 filas:  fila 1 = abscisas, fila 2 = ordenadas")
+    print("    3 filas:  se agrega la fila de componentes w")
 
     nombre = input("  Nombre del objeto: ").strip()
     if not nombre:
         print("  Operacion cancelada: el nombre no puede estar vacio.")
         return
 
-    filas = int(leer_opcion("  Cantidad de filas (2 = cartesiana / 3 = homogenea): ",
-                            {"2", "3"}))
+    filas = int(leer_opcion("  Cantidad de filas: ", {"2", "3"}))
     columnas = leer_entero_positivo("  Cantidad de columnas (vertices): ", minimo=1)
 
     print(f"  Ingrese cada fila con {columnas} numero(s) separados por espacios.")
@@ -212,7 +213,7 @@ def crear_por_matriz(escenario, gestor):
     print(f"\n  Matriz ingresada ({M.m}x{M.n}):")
     print(M)
     if filas == 3:
-        print("  Convertida a coordenadas cartesianas dividiendo entre w.")
+        print("  Convertida dividiendo cada columna entre su componente w.")
     print(f"\n  Objeto '{figura.nombre}' agregado al escenario.")
     print(SEP)
     print(figura.detalle())
@@ -237,6 +238,9 @@ def ver_objeto(escenario):
         try:
             print(f"    P{j} = A^({j}) =")
             print(figura.vector_posicion(j))
+            if homogenea:
+                print(f"    En coordenadas homogeneas, A_h^({j}) =")
+                print(figura.vector_posicion_homogeneo(j))
         except IndexError as e:
             print(f"    {e}")
 

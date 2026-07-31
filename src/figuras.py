@@ -119,7 +119,14 @@ class Figura:
     def vector_posicion(self, j):
         """P_j como matriz columna de M_{2 x 1}(R), tal como se define en clase."""
         return self.matriz.columna(j)
+    def vector_posicion_homogeneo(self, j):
+        """
+        P_j como matriz columna de M_{3 x 1}(R), en coordenadas homogeneas.
 
+        Es la j-esima columna de la matriz homogenea: las mismas coordenadas
+        cartesianas mas la componente w = 1.
+        """
+        return self.matriz_homogenea().columna(j)
     def es_poligono(self):
         """Un poligono requiere al menos 3 vertices."""
         return self.cantidad_vertices >= 3
