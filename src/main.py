@@ -253,10 +253,10 @@ def pedir_centro():
 
 def pedir_transformacion_simple(figura):
     print("\n  Transformacion")
-    print("    1) Trasladar   (suma:     A' = A + T)")
-    print("    2) Rotar       (producto: A' = R * A)")
-    print("    3) Escalar     (producto: A' = S * A)")
-    print("    4) Reflejar    (producto: A' = F * A)")
+    print("    1) Trasladar   ")
+    print("    2) Rotar       ")
+    print("    3) Escalar     ")
+    print("    4) Reflejar    ")
     op = leer_opcion("  Opcion: ", {"1", "2", "3", "4"})
 
     if op == "1":
