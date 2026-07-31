@@ -278,3 +278,195 @@ def matriz_compuesta(matrices):
     for Mi in matrices:
         M = Mi.producto(M)
     return M
+# ======================================================================
+# COORDENADAS HOMOGENEAS (matrices de 3 x 3)
+# ======================================================================
+# Este bloque es ADITIVO: no reemplaza nada de lo anterior. Ofrece una
+# segunda via para aplicar las mismas transformaciones.
+#
+# FUNDAMENTO
+# ----------
+# En la forma cartesiana, la traslacion no puede expresarse como producto
+# porque toda matriz cumple M * O = O: las transformaciones lineales dejan
+# fijo el origen.
+#
+# Las coordenadas homogeneas resuelven ese problema agregando una tercera
+# componente. Cada punto (x, y) se representa como (x, y, 1), y la figura
+# pasa de ser una matriz de 2 x n a una de 3 x n:
+#
+#           | x1  x2  ...  xn |
+#     A_h = | y1  y2  ...  yn |
+#           |  1   1  ...   1 |
+#
+# Con esa tercera fila, la traslacion SI se escribe como producto:
+#
+#     | 1  0  tx |   | x |     | x + tx |
+#     | 0  1  ty | * | y |  =  | y + ty |
+#     | 0  0   1 |   | 1 |     |    1   |
+#
+# La fila (0, 0, 1) es la que mantiene la componente w igual a 1 despues de
+# cualquier transformacion afin.
+#
+# CONSECUENCIA PRACTICA
+# ---------------------
+# Como las cuatro transformaciones son ahora productos, una secuencia
+# completa (incluyendo traslaciones) puede condensarse en UNA sola matriz
+# de 3x3, en lugar de recorrer la figura una vez por transformacion. Es lo
+# que hacen los motores graficos reales.
+# ======================================================================
+
+def a_homogenea(M):
+    """
+    Convierte una matriz lineal de 2x2 en su equivalente homogenea de 3x3:
+
+        | a  b |         | a  b  0 |
+        | c  d |   -->   | c  d  0 |
+                         | 0  0  1 |
+
+    La tercera columna es 0 porque la transformacion no traslada, y la
+    tercera fila (0, 0, 1) preserva la componente w.
+    """
+    if M.tamano != (2, 2):
+        raise ValueError(f"Se esperaba una matriz de 2x2; se recibio {M.m}x{M.n}.")
+    return Matriz([
+        [M.datos[0][0], M.datos[0][1], 0.0],
+        [M.datos[1][0], M.datos[1][1], 0.0],
+        [0.0,           0.0,           1.0],
+    ])
+
+
+def matriz_rotacion_h(grados):
+    """Rotacion en coordenadas homogeneas."""
+    return a_homogenea(matriz_rotacion(grados))
+
+
+def matriz_escalamiento_h(sx, sy=None):
+    """Escalamiento en coordenadas homogeneas."""
+    return a_homogenea(matriz_escalamiento(sx, sy))
+
+
+def matriz_reflexion_h(eje):
+    """Reflexion en coordenadas homogeneas."""
+    return a_homogenea(matriz_reflexion(eje))
+
+
+def matriz_traslacion_h(tx, ty):
+    """
+    Traslacion en coordenadas homogeneas:
+
+        T = | 1  0  tx |
+            | 0  1  ty |
+            | 0  0   1 |
+
+    A diferencia de la version cartesiana, esta matriz es de 3x3 y NO
+    depende de la cantidad de vertices de la figura: es siempre la misma.
+    """
+    return Matriz([[1.0, 0.0, float(tx)],
+                   [0.0, 1.0, float(ty)],
+                   [0.0, 0.0, 1.0]])
+
+
+def matriz_transformacion_h(operacion):
+    """
+    Construye la matriz homogenea 3x3 correspondiente a una operacion.
+
+    operacion es una tupla como ("rotar", 30) o ("trasladar", (3, 1)),
+    con el mismo formato que usa aplicar_secuencia.
+
+    Devuelve (matriz, descripcion).
+    """
+    clave = str(operacion[0]).lower()
+    if clave == "rotar":
+        return (matriz_rotacion_h(operacion[1]),
+                f"Rotacion de {formatear(operacion[1])} grados")
+    if clave == "escalar":
+        arg = operacion[1]
+        if isinstance(arg, (tuple, list)):
+            return (matriz_escalamiento_h(*arg),
+                    f"Escalamiento de factor ({formatear(arg[0])}, {formatear(arg[1])})")
+        return (matriz_escalamiento_h(arg), f"Escalamiento de factor {formatear(arg)}")
+    if clave == "reflejar":
+        return (matriz_reflexion_h(operacion[1]),
+                f"Reflexion respecto al {nombre_eje(operacion[1])}")
+    if clave == "trasladar":
+        tx, ty = operacion[1]
+        return (matriz_traslacion_h(tx, ty),
+                f"Traslacion por el vector ({formatear(tx)}, {formatear(ty)})")
+    raise KeyError(f"Operacion desconocida: {operacion[0]}")
+
+
+def matriz_compuesta_h(matrices):
+    """
+    Producto acumulado de matrices homogeneas 3x3.
+
+        M = Mk * ... * M2 * M1
+
+    La primera transformacion aplicada queda a la DERECHA, igual que en la
+    version cartesiana, por la asociatividad del producto.
+
+    A diferencia de matriz_compuesta(), esta version SI admite traslaciones,
+    porque en coordenadas homogeneas tambien son productos.
+    """
+    M = Matriz.identidad(3)
+    for Mi in matrices:
+        if Mi.tamano != (3, 3):
+            raise ValueError("Todas las matrices deben ser de 3x3.")
+        M = Mi.producto(M)
+    return M
+
+
+def aplicar_homogenea(figura, H, descripcion):
+    """
+    Aplica una transformacion homogenea a la figura:  A_h' = H * A_h
+
+    La figura se convierte a 3 x n, se multiplica por la matriz de 3x3 y el
+    resultado se convierte de vuelta a coordenadas cartesianas.
+    """
+    if H.tamano != (3, 3):
+        raise ValueError(f"Se esperaba una matriz de 3x3; se recibio {H.m}x{H.n}.")
+
+    A_h = figura.matriz_homogenea()
+    A_nueva_h = H.producto(A_h)
+
+    calculos = [
+        f"A_h' = H * A_h   ({H.m}x{H.n}) * ({A_h.m}x{A_h.n}) = "
+        f"({A_nueva_h.m}x{A_nueva_h.n})",
+        "",
+        "Figura en coordenadas homogeneas (se agrega la fila de unos):",
+    ]
+    calculos += ["  " + linea for linea in str(A_h).split("\n")]
+    calculos += ["", "Desarrollo del producto:"]
+    calculos += H.detalle_producto(A_h)
+    calculos += ["", "Resultado homogeneo (la tercera fila se mantiene en 1):"]
+    calculos += ["  " + linea for linea in str(A_nueva_h).split("\n")]
+
+    return Resultado(descripcion, "homogenea", H, figura,
+                     Figura.desde_matriz(figura.nombre, A_nueva_h), calculos)
+
+
+def aplicar_secuencia_homogenea(figura, operaciones):
+    """
+    Aplica varias transformaciones condensandolas en UNA sola matriz de 3x3.
+
+    A diferencia de aplicar_secuencia(), que recorre la figura una vez por
+    transformacion, aqui se calcula primero la matriz compuesta y luego se
+    aplica una unica vez. El resultado es el mismo.
+
+    Devuelve (figura_final, matriz_compuesta, resultado, detalle_pasos)
+    donde detalle_pasos lista cada matriz individual con su descripcion.
+    """
+    if not operaciones:
+        raise ValueError("Debe indicar al menos una transformacion.")
+
+    matrices = []
+    detalle_pasos = []
+    for op in operaciones:
+        H, desc = matriz_transformacion_h(op)
+        matrices.append(H)
+        detalle_pasos.append((desc, H))
+
+    H_total = matriz_compuesta_h(matrices)
+    descripcion = "Secuencia homogenea: " + " -> ".join(d for d, _ in detalle_pasos)
+    resultado = aplicar_homogenea(figura, H_total, descripcion)
+
+    return resultado.figura_despues, H_total, resultado, detalle_pasos

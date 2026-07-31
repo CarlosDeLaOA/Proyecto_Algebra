@@ -55,13 +55,50 @@ class Figura:
     # ------------------------------------------------------------------
     @classmethod
     def desde_matriz(cls, nombre, matriz):
-        """Reconstruye una figura a partir de una matriz de 2 x n."""
-        if matriz.m != 2:
-            raise ValueError(
-                f"La matriz de una figura 2D debe tener exactamente 2 filas; "
-                f"la recibida tiene {matriz.m}.")
-        puntos = [(matriz.datos[0][j], matriz.datos[1][j]) for j in range(matriz.n)]
-        return cls(nombre, puntos)
+        """
+        Reconstruye una figura a partir de su matriz.
+
+        Admite DOS representaciones:
+
+          - CARTESIANA, matriz de 2 x n:
+                | x1  x2  ...  xn |
+                | y1  y2  ...  yn |
+
+          - HOMOGENEA, matriz de 3 x n:
+                | x1  x2  ...  xn |
+                | y1  y2  ...  yn |
+                | w1  w2  ...  wn |
+
+        En la forma homogenea, el punto cartesiano de la columna j se obtiene
+        dividiendo entre wj:   (xj/wj , yj/wj).
+
+        Habitualmente wj = 1, porque las transformaciones afines conservan esa
+        componente. La division general se implementa igual, para que la
+        conversion sea correcta si en el futuro se incorporan transformaciones
+        proyectivas, donde w si cambia.
+
+        Un valor wj = 0 representa un punto en el infinito (una direccion, no
+        una posicion) y no tiene equivalente cartesiano, por lo que se rechaza.
+        """
+        if matriz.m == 2:
+            puntos = [(matriz.datos[0][j], matriz.datos[1][j])
+                      for j in range(matriz.n)]
+            return cls(nombre, puntos)
+
+        if matriz.m == 3:
+            puntos = []
+            for j in range(matriz.n):
+                w = matriz.datos[2][j]
+                if es_cero(w):
+                    raise ValueError(
+                        f"La columna {j+1} tiene w = 0: representa un punto en el "
+                        "infinito y no admite conversion a coordenadas cartesianas.")
+                puntos.append((matriz.datos[0][j] / w, matriz.datos[1][j] / w))
+            return cls(nombre, puntos)
+
+        raise ValueError(
+            f"La matriz de una figura 2D debe tener 2 filas (cartesiana) o "
+            f"3 filas; la recibida tiene {matriz.m}.")
 
     # ------------------------------------------------------------------
     # Consulta
@@ -86,6 +123,28 @@ class Figura:
     def es_poligono(self):
         """Un poligono requiere al menos 3 vertices."""
         return self.cantidad_vertices >= 3
+    def matriz_homogenea(self):
+        """
+        Devuelve la figura en COORDENADAS HOMOGENEAS: una matriz de 3 x n
+        formada agregando una tercera fila constante igual a 1.
+
+                | x1  x2  ...  xn |
+                | y1  y2  ...  yn |
+                |  1   1  ...   1 |
+
+        Esta representacion permite expresar la traslacion como un PRODUCTO de
+        matrices de 3x3, en lugar de como una suma, y por lo tanto condensar
+        cualquier secuencia de transformaciones (incluidas las traslaciones)
+        en una unica matriz.
+
+        La figura sigue almacenandose internamente en forma cartesiana de
+        2 x n: esta es una vista alterna que se construye cuando se pide.
+        """
+        return Matriz([
+            self.matriz.datos[0][:],
+            self.matriz.datos[1][:],
+            [1.0] * self.matriz.n,
+        ])
 
     # ------------------------------------------------------------------
     # Presentacion
@@ -95,8 +154,13 @@ class Figura:
             f"  P{j + 1} = ({formatear(x)}, {formatear(y)})"
             for j, (x, y) in enumerate(self.vertices()))
 
-    def detalle(self):
-        """Ficha completa del objeto, para mostrar en la interfaz."""
+    def detalle(self, incluir_homogenea=False):
+        """
+        Ficha completa del objeto para mostrar en la interfaz.
+
+        Si incluir_homogenea es True, agrega al final la representacion en
+        coordenadas homogeneas (matriz de 3 x n).
+        """
         L = []
         L.append(f"Objeto: {self.nombre}")
         L.append(f"Cantidad de vertices: {self.cantidad_vertices}")
@@ -112,6 +176,11 @@ class Figura:
         L.append("Filas de A:")
         L.append(f"  A_(1) = {self.matriz.fila(1)}   (abscisas)")
         L.append(f"  A_(2) = {self.matriz.fila(2)}   (ordenadas)")
+        if incluir_homogenea:
+            H = self.matriz_homogenea()
+            L.append("")
+            L.append(f"Representacion homogenea, A_h en M_{{3 x {H.n}}}(R):")
+            L.append(str(H))
         return "\n".join(L)
 
     def __str__(self):

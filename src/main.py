@@ -10,6 +10,18 @@ Principios de la interfaz:
   - El escenario arranca VACIO. Ninguna figura viene predeterminada.
   - Los graficos se generan solo cuando el usuario los pide.
   - Ningun resultado se guarda sin que el usuario decida que hacer con el.
+
+REPRESENTACIONES ADMITIDAS
+--------------------------
+Los objetos se pueden construir de dos maneras: indicando sus coordenadas
+cartesianas vertice por vertice, o ingresando directamente su matriz. En el
+segundo caso se acepta tanto la forma cartesiana de 2 filas como la forma
+homogenea de 3 filas.
+
+Del mismo modo, las transformaciones consecutivas se pueden aplicar en modo
+cartesiano (matrices de 2x2 mas suma para la traslacion) o en modo homogeneo
+(matrices de 3x3, donde la traslacion tambien es un producto y toda la
+secuencia se condensa en una sola matriz).
 """
 
 import transformaciones as tr
@@ -17,7 +29,7 @@ import analisis
 import graficos
 from figuras import Figura, Escenario
 from historial import GestorHistorial
-from matrices import formatear
+from matrices import formatear, Matriz
 
 SEP = "-" * 58
 
@@ -52,6 +64,23 @@ def leer_opcion(mensaje, validas):
         if op in validas:
             return op
         print(f"  Opcion invalida. Use: {', '.join(sorted(validas))}")
+
+
+def leer_fila(mensaje, cantidad):
+    """
+    Lee una fila completa de una matriz: varios numeros en una sola linea,
+    separados por espacios o comas.
+    """
+    while True:
+        texto = input(mensaje).strip().replace(",", " ")
+        partes = texto.split()
+        if len(partes) != cantidad:
+            print(f"  Debe ingresar exactamente {cantidad} numeros separados por espacios.")
+            continue
+        try:
+            return [float(p) for p in partes]
+        except ValueError:
+            print("  Todos los valores deben ser numeros.")
 
 
 def elegir_objeto(escenario, accion="operar"):
@@ -106,6 +135,17 @@ def guardar_resultado(escenario, figura_original, vertices_nuevos, etiqueta):
 # ACTIVIDAD #1: representacion de objetos
 # ----------------------------------------------------------------------
 def crear_objeto(escenario, gestor):
+    """Menu de construccion: por coordenadas o por matriz."""
+    print("\n  Como desea construir el objeto?")
+    print("    1) Ingresando sus coordenadas cartesianas, vertice por vertice")
+    print("    2) Ingresando directamente su matriz")
+    if leer_opcion("  Opcion: ", {"1", "2"}) == "1":
+        crear_por_coordenadas(escenario, gestor)
+    else:
+        crear_por_matriz(escenario, gestor)
+
+
+def crear_por_coordenadas(escenario, gestor):
     print("\nConstruccion de un objeto por coordenadas cartesianas")
     nombre = input("  Nombre del objeto: ").strip()
     if not nombre:
@@ -134,12 +174,60 @@ def crear_objeto(escenario, gestor):
     print(SEP)
 
 
+def crear_por_matriz(escenario, gestor):
+    """
+    Construye un objeto ingresando su matriz fila por fila.
+
+    Admite las dos representaciones que acepta Figura.desde_matriz:
+    cartesiana de 2 filas u homogenea de 3 filas.
+    """
+    print("\nConstruccion de un objeto ingresando su matriz")
+    print("  Representaciones admitidas:")
+    print("    2 filas -> cartesiana:  fila 1 = abscisas, fila 2 = ordenadas")
+    print("    3 filas -> homogenea:   se agrega la fila de componentes w")
+
+    nombre = input("  Nombre del objeto: ").strip()
+    if not nombre:
+        print("  Operacion cancelada: el nombre no puede estar vacio.")
+        return
+
+    filas = int(leer_opcion("  Cantidad de filas (2 = cartesiana / 3 = homogenea): ",
+                            {"2", "3"}))
+    columnas = leer_entero_positivo("  Cantidad de columnas (vertices): ", minimo=1)
+
+    print(f"  Ingrese cada fila con {columnas} numero(s) separados por espacios.")
+    etiquetas = ["abscisas (x)", "ordenadas (y)", "componentes (w)"]
+    datos = []
+    for i in range(filas):
+        datos.append(leer_fila(f"    Fila {i + 1} - {etiquetas[i]}: ", columnas))
+
+    try:
+        M = Matriz(datos)
+        figura = escenario.agregar(Figura.desde_matriz(nombre, M))
+    except (ValueError, TypeError) as e:
+        print(f"  No se pudo crear el objeto: {e}")
+        return
+
+    gestor.iniciar(figura)
+    print(f"\n  Matriz ingresada ({M.m}x{M.n}):")
+    print(M)
+    if filas == 3:
+        print("  Convertida a coordenadas cartesianas dividiendo entre w.")
+    print(f"\n  Objeto '{figura.nombre}' agregado al escenario.")
+    print(SEP)
+    print(figura.detalle())
+    print(SEP)
+
+
 def ver_objeto(escenario):
     figura = elegir_objeto(escenario, "consultar")
     if figura is None:
         return
+
+    homogenea = leer_opcion("  Mostrar tambien la representacion homogenea? (s/n): ",
+                            {"s", "n"}) == "s"
     print(SEP)
-    print(figura.detalle())
+    print(figura.detalle(incluir_homogenea=homogenea))
     print(SEP)
 
     if leer_opcion("  Ver un vertice como matriz columna? (s/n): ",
@@ -204,7 +292,13 @@ def pedir_transformacion_simple(figura):
     return tr.reflejar(figura, eje)
 
 
-def pedir_secuencia(figura):
+def pedir_operaciones():
+    """
+    Lee una lista de operaciones sin aplicarlas todavia.
+
+    Se usa tanto en el modo cartesiano como en el homogeneo, porque el
+    formato de la lista es el mismo en ambos casos.
+    """
     print("\n  Ingrese las transformaciones EN ORDEN. Escriba 'fin' para terminar.")
     print("  Comandos: trasladar / rotar / escalar / reflejar / fin")
     operaciones = []
@@ -226,11 +320,66 @@ def pedir_secuencia(figura):
                              set(tr.EJES_REFLEXION.keys()))))
         else:
             print("      Comando no reconocido.")
+    return operaciones
 
+
+def pedir_secuencia(figura):
+    """Modo cartesiano: aplica las transformaciones una por una."""
+    operaciones = pedir_operaciones()
     if not operaciones:
         return []
     _, resultados = tr.aplicar_secuencia(figura, operaciones)
     return resultados
+
+
+def transformar_homogenea(escenario, gestor, figura, estado):
+    """
+    Modo homogeneo: aplica una secuencia de transformaciones condensandolas
+    en una unica matriz de 3x3.
+
+    A diferencia del modo cartesiano, aqui la traslacion tambien es un
+    producto, de modo que la matriz compuesta puede incluirla.
+    """
+    print("\n  Modo homogeneo: las cuatro transformaciones son productos de")
+    print("  matrices de 3x3 y toda la secuencia se condensa en una sola matriz.")
+
+    operaciones = pedir_operaciones()
+    if not operaciones:
+        print("  No se aplico ninguna transformacion.")
+        return
+
+    try:
+        final, H_total, resultado, pasos = tr.aplicar_secuencia_homogenea(
+            figura, operaciones)
+    except (ValueError, KeyError) as e:
+        print(f"  No se pudo aplicar la transformacion: {e}")
+        return
+
+    print("\n" + SEP)
+    print("Matrices homogeneas individuales")
+    print(SEP)
+    for k, (desc, H) in enumerate(pasos, start=1):
+        print(f"\nM{k} - {desc}:")
+        print(H)
+
+    print("\n" + SEP)
+    print(f"Matriz compuesta  H = M{len(pasos)} * ... * M1")
+    print(SEP)
+    print(H_total)
+    print("\nLa tercera columna contiene la traslacion acumulada, y la tercera")
+    print("fila (0, 0, 1) preserva la componente w.")
+
+    print("\n" + SEP)
+    print(resultado.informe())
+    print(SEP)
+
+    estado["ultimo"] = resultado
+    destino = guardar_resultado(escenario, figura,
+                                resultado.figura_despues.vertices(),
+                                "la figura transformada")
+    if destino:
+        gestor.registrar_secuencia(destino, figura, [resultado])
+        print(f"  Transformacion registrada en el historial de '{destino}'.")
 
 
 def aplicar_transformacion(escenario, gestor, estado):
@@ -240,8 +389,13 @@ def aplicar_transformacion(escenario, gestor, estado):
 
     print("\n  Modo")
     print("    1) Una sola transformacion")
-    print("    2) Varias transformaciones consecutivas")
-    modo = leer_opcion("  Opcion: ", {"1", "2"})
+    print("    2) Varias transformaciones consecutivas (cartesiano, 2x2)")
+    print("    3) Varias transformaciones con matriz compuesta 3x3 (homogeneas)")
+    modo = leer_opcion("  Opcion: ", {"1", "2", "3"})
+
+    if modo == "3":
+        transformar_homogenea(escenario, gestor, figura, estado)
+        return
 
     try:
         resultados = [pedir_transformacion_simple(figura)] if modo == "1" \
@@ -263,7 +417,8 @@ def aplicar_transformacion(escenario, gestor, estado):
         print(SEP)
 
     # Si todas las transformaciones fueron LINEALES, mostrar la matriz
-    # equivalente. Las traslaciones no pueden incluirse por no ser lineales.
+    # equivalente. Las traslaciones no pueden incluirse en modo cartesiano
+    # por no ser lineales; para eso esta el modo homogeneo.
     lineales = [r.matriz_usada for r in resultados if r.operacion == "producto"]
     if len(lineales) > 1 and len(lineales) == len(resultados):
         print("\nMatriz compuesta equivalente  M = Mk * ... * M1:")
@@ -421,7 +576,7 @@ def menu_historial(escenario, gestor):
 
     elif op == "2":
         print("\n  Pasos disponibles:")
-        print(f"    0. Estado inicial ({len(h.estado_inicial)} vertices)")
+        print(f"  0. Estado inicial ({len(h.estado_inicial)} vertices)")
         print(h.resumen())
         paso = leer_entero_positivo("  Reconstruir hasta el paso: ", minimo=0)
         try:
@@ -497,7 +652,7 @@ def main():
         print(f"Escenario: {len(escenario)} objeto(s)")
         print(escenario.listar())
         print(SEP)
-        print("  1) Crear objeto por coordenadas")
+        print("  1) Crear objeto (por coordenadas o por matriz)")
         print("  2) Ver detalle de un objeto")
         print("  3) Aplicar transformacion")
         print("  4) Analisis matematico del escenario")

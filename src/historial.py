@@ -51,6 +51,8 @@ class Registro:
             return "A' = A + T"
         if self.operacion == "compuesta":
             return "A' = M * (A - C) + C"
+        if self.operacion == "homogenea":
+            return "A_h' = H * A_h   (coordenadas homogeneas)"
         return "modificacion estructural"
 
     def __str__(self):
