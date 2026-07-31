@@ -181,8 +181,8 @@ class Figura:
         L.append(self.texto_vertices())
         L.append("")
         L.append("Filas de A:")
-        L.append(f"  A_(1) = {self.matriz.fila(1)}   (abscisas)")
-        L.append(f"  A_(2) = {self.matriz.fila(2)}   (ordenadas)")
+        L.append(f"  A_(1) = {self.matriz.fila(1)}   ")
+        L.append(f"  A_(2) = {self.matriz.fila(2)}   ")
         if incluir_homogenea:
             H = self.matriz_homogenea()
             L.append("")

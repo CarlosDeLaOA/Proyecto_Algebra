@@ -2,18 +2,6 @@
 PixelForge MathEngine 2D v1.0
 Modulo: matrices.py
 
-Nucleo de algebra matricial. Implementado desde cero, sin bibliotecas que
-resuelvan directamente los algoritmos.
-
-NOTACION (Semana 3 del curso):
-    A pertenece a M_{m x n}(R)   ->  matriz de m filas y n columnas
-    <A>_ij                       ->  elemento de la fila i, columna j
-    A_(i)                        ->  i-esima FILA de A
-    A^(j)                        ->  j-esima COLUMNA de A
-    A^t                          ->  transpuesta, <A^t>_ij = <A>_ji
-
-Los indices que ve el usuario son 1-based, igual que en las diapositivas.
-Internamente Python trabaja 0-based.
 """
 
 TOLERANCIA = 1e-9

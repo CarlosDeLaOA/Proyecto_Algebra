@@ -8,16 +8,6 @@ Requisito de la consigna: "Toda transformacion aplicada debera quedar
 registrada para permitir reconstruir el historial de modificaciones
 realizadas sobre un objeto del escenario."
 
-DISENO
-------
-Cada objeto del escenario tiene su propio historial, porque la consigna pide
-reconstruir las modificaciones "sobre un objeto", no sobre el escenario
-completo. El GestorHistorial mantiene un historial por objeto.
-
-Cada Historial es una PILA de registros: el ultimo en entrar es el primero
-en salir, lo que permite deshacer paso a paso. Ademas se conserva el estado
-inicial, de modo que se puede reconstruir la figura en cualquier punto de su
-historia sin recalcular las transformaciones.
 """
 
 from matrices import formatear

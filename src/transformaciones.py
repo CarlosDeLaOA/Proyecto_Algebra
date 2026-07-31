@@ -4,33 +4,6 @@ Modulo: transformaciones.py
 
 ACTIVIDAD #2: Transformaciones geometricas.
 
-Requisito de la consigna: el motor debe permitir traslacion, rotacion,
-escalamiento y reflexion, mostrando la figura original, la matriz utilizada,
-los calculos realizados y la figura transformada; ademas debe permitir aplicar
-multiples transformaciones de manera consecutiva.
-
-DECISION DE DISENO CENTRAL
---------------------------
-De las cuatro transformaciones solicitadas, TRES son lineales y se aplican
-como PRODUCTO de matrices:
-
-        A' = M_{2x2} * A_{2xn}
-
-mientras que la TRASLACION no es lineal. No existe ninguna matriz M de 2x2
-que traslade la figura, porque toda transformacion lineal deja fijo el origen
-(M * O = O). Por eso la traslacion se implementa como SUMA de matrices:
-
-        A' = A + T,   con T en M_{2 x n}(R) y todas sus columnas iguales a
-                      la matriz columna (tx, ty)^t
-
-Ambas operaciones (producto y suma) son exactamente las estudiadas en la
-Semana 3, de modo que no se recurre a coordenadas homogeneas.
-
-ORDEN DE APLICACION
--------------------
-Como A*B != B*A, el orden en que se aplican las transformaciones consecutivas
-modifica el resultado. El motor respeta el orden indicado por el usuario y lo
-deja registrado.
 """
 
 import math

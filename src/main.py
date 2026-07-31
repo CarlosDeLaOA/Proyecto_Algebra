@@ -6,22 +6,6 @@ Interfaz de consola del motor grafico.
 Actividades habilitadas: #1 (representacion), #2 (transformaciones),
 #3 (analisis matematico) y #4 (historial de transformaciones).
 
-Principios de la interfaz:
-  - El escenario arranca VACIO. Ninguna figura viene predeterminada.
-  - Los graficos se generan solo cuando el usuario los pide.
-  - Ningun resultado se guarda sin que el usuario decida que hacer con el.
-
-REPRESENTACIONES ADMITIDAS
---------------------------
-Los objetos se pueden construir de dos maneras: indicando sus coordenadas
-cartesianas vertice por vertice, o ingresando directamente su matriz. En el
-segundo caso se acepta tanto la forma cartesiana de 2 filas como la forma
-homogenea de 3 filas.
-
-Del mismo modo, las transformaciones consecutivas se pueden aplicar en modo
-cartesiano (matrices de 2x2 mas suma para la traslacion) o en modo homogeneo
-(matrices de 3x3, donde la traslacion tambien es un producto y toda la
-secuencia se condensa en una sola matriz).
 """
 
 import transformaciones as tr
@@ -644,7 +628,6 @@ def ver_grafico(escenario, estado):
 def main():
     print("=" * 58)
     print("     PixelForge MathEngine 2D v1.0")
-    print("     Actividades habilitadas: #1, #2, #3 y #4")
     print("=" * 58)
 
     escenario = Escenario()

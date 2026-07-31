@@ -2,12 +2,7 @@
 PixelForge MathEngine 2D v1.0
 Modulo: graficos.py
 
-Representacion grafica del resultado. matplotlib se usa UNICAMENTE para
-dibujar; ningun calculo de algebra lineal se delega a una biblioteca.
-
-Si matplotlib no esta instalado, el motor sigue funcionando y dibuja en modo
-texto. El grafico nunca se genera solo: se produce cuando el usuario lo pide
-desde el menu.
+.
 """
 
 import os

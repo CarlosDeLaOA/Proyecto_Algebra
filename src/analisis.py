@@ -8,11 +8,6 @@ Requisito de la consigna: analizar espacios vectoriales y subespacios,
 verificar independencia lineal, determinar bases y dimension, detectar
 informacion redundante e interpretar geometricamente los resultados.
 
-Todo el modulo se apoya en UN SOLO algoritmo escrito por el equipo: la
-reduccion de Gauss-Jordan. De su forma escalonada reducida se derivan el
-rango, la independencia lineal, la base, la dimension y la redundancia.
-
-No se utiliza numpy.linalg.matrix_rank, numpy.linalg.solve ni equivalentes.
 """
 
 from matrices import Matriz, es_cero, formatear
